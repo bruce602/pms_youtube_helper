@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'unsafe-inline'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src https://www.youtube.com https://www.youtube-nocookie.com; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>Project Maps Studio | YouTube helper</title>
+<style>
+:root{font-family:system-ui,'Segoe UI',Arial,sans-serif;color:#182842;background:#f3f6fb;line-height:1.5;color-scheme:light}*{box-sizing:border-box}body{margin:0}main{max-width:1040px;margin:0 auto;padding:24px}h1{font-size:25px;margin:0 0 8px}p{margin:8px 0 16px}.intro{font-size:15px;color:#425775}.controls{background:white;border:1px solid #cddaea;border-radius:12px;padding:18px;margin:18px 0}label{display:block;font-weight:650;font-size:14px;margin-bottom:8px}.input-row{display:flex;gap:10px;flex-wrap:wrap}input{flex:1;min-width:200px;border:1px solid #afc4df;border-radius:7px;padding:11px;font:inherit}button,a.action{display:inline-block;border:1px solid #afc4df;border-radius:7px;padding:10px 15px;background:#fff;color:#123867;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}button.primary{background:#1859d9;color:white;border-color:#1859d9}button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,a:focus-visible,input:focus{outline:3px solid #8bb9ff;outline-offset:2px}.help{font-size:13px;color:#526681;margin:12px 0 0}.error{color:#922e21;font-size:14px}.video-shell{position:relative;width:100%;min-width:200px;min-height:200px;aspect-ratio:16/9;background:#101725;border-radius:10px;overflow:hidden}#player{position:absolute;inset:0;width:100%;height:100%;border:0}.placeholder{height:100%;display:grid;place-content:center;text-align:center;color:white;padding:24px;font-size:16px}.status{padding:12px 14px;border:1px solid #cddaea;background:white;border-radius:8px;margin-top:12px;font-size:14px}.status[data-level="error"]{color:#862d20;background:#fff4ef;border-color:#dba498}.status[data-level="pass"]{color:#09553e;background:#edfaf4;border-color:#8ebfaf}.footer{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:14px}.version{font-size:12px;color:#526681}.privacy{font-size:13px;color:#526681;margin-top:18px}.privacy a{color:#164f9e}a[hidden],[hidden]{display:none!important}.panel body{height:100vh;min-height:246px;background:#101725}.panel main{padding:0;max-width:none;height:100%;display:flex;flex-direction:column}.panel .page-only{display:none}.panel .video-shell{flex:1;aspect-ratio:auto;border-radius:0}.panel .status{flex:none;margin:0;border-radius:0;border:0;border-top:1px solid #d4deed;font-size:12px;padding:7px 10px;line-height:1.4}@media(max-width:500px){main{padding:16px}h1{font-size:21px}.input-row button{flex:1}.footer a{width:100%;text-align:center}}
+</style>
+</head>
+<body>
+<main>
+<header class="page-only"><h1>Project Maps Studio: YouTube helper</h1><p class="intro">A small hosted player page for the proposed Studio Web panel. This is not the Studio application.</p></header>
+<section class="controls page-only"><label for="video-input">Public YouTube video link or video ID</label><div class="input-row"><input id="video-input" value="https://www.youtube.com/watch?v=M7lc1UVf-VE" autocomplete="off" spellcheck="false"><button id="load" class="primary" type="button">Load video</button><button id="sample" type="button">Use sample</button></div><p class="help">Press Play in the official YouTube player after it loads. Nothing plays automatically.</p><p id="input-error" class="error" role="alert"></p></section>
+<div class="video-shell" id="screen"><div class="placeholder">Ready. Select Load video to connect to YouTube.</div></div>
+<div id="status" class="status" role="status" aria-live="polite">Helper page loaded. No video has been requested.</div>
+<div class="footer page-only"><a id="watch" class="action" href="https://www.youtube.com/watch?v=M7lc1UVf-VE" target="_blank" rel="noopener noreferrer">Open on YouTube</a><span class="version">Helper version 0.1.0 | Hosting test candidate</span></div>
+<p class="privacy page-only">This helper does not request or store maps, Notes, files, passwords or account tokens. When a video is loaded, GitHub Pages and YouTube receive normal connection information, and YouTube receives the selected video ID. There is no custom analytics or database. Use a public video for this test. Loading a player does not establish successful playback.<br><a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a></p>
+</main>
+<script>
+(() => {
+  'use strict';
+  // Original helper implementation using the documented YouTube IFrame Player API.
+  // A local Studio parent loads THIS page over HTTPS. Do not copy this code into
+  // a file:// iframe or spoof an origin: the real hosted origin supplies identity.
+  const SAMPLE = 'M7lc1UVf-VE';
+  const $ = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  const requestedChannel = fragment.get('channel') || '';
+  const channel = /^[a-f0-9]{32}$/.test(requestedChannel) ? requestedChannel : '';
+  const parentHint = fragment.get('parent') || '';
+  let parentTarget = '';
+  if (parentHint === 'null') parentTarget = '*';
+  else {
+    try { const u = new URL(parentHint); if (['https:', 'http:'].includes(u.protocol) && u.origin === parentHint && !u.username && !u.password) parentTarget = u.origin; } catch (_) {}
+  }
+  if (params.get('panel') === '1') document.documentElement.classList.add('panel');
+  const hosted = location.protocol === 'https:' || (location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname));
+  let apiPromise = null, player = null, generation = 0, tick = null, readyTimeout = null;
+  let activeVideo = '', activeStart = 0, confirmed = false, baseTime = null, baseWall = null;
+  let lastTime = null, movingSamples = 0;
+  function status(message, level = '') { $('status').textContent = message; $('status').dataset.level = level; }
+  function emit(event, extra = {}) {
+    if (window.parent === window || !channel || !parentTarget) return;
+    // This endpoint accepts no parent commands. Only non-sensitive playback
+    // diagnostics are sent to the immediate parent. '*' is needed for a file://
+    // parent's opaque origin. The caller must verify origin, source and channel.
+    window.parent.postMessage({type:'pms-youtube-helper', version:1, channel, event, videoId:activeVideo, ...extra}, parentTarget);
+  }
+  function parseVideo(value) {
+    value = String(value).trim();
+    if (/^[A-Za-z0-9_-]{11}$/.test(value)) return {id:value, start:0};
+    let u;
+    try { u = new URL(value); } catch (_) { throw new Error('Enter a full HTTPS YouTube video link or an 11 character video ID.'); }
+    if (u.protocol !== 'https:' || u.username || u.password || u.port) throw new Error('Use a normal HTTPS YouTube video link.');
+    const h = u.hostname.toLowerCase(), p = u.pathname.split('/').filter(Boolean);
+    let id = '';
+    if (['youtu.be','www.youtu.be'].includes(h)) id = p[0] || '';
+    else if (['youtube.com','www.youtube.com','m.youtube.com','youtube-nocookie.com','www.youtube-nocookie.com'].includes(h)) {
+      if (p[0] === 'watch') id = u.searchParams.get('v') || '';
+      else if (['embed','shorts','live'].includes(p[0])) id = p[1] || '';
+    }
+    if (!/^[A-Za-z0-9_-]{11}$/.test(id)) throw new Error('Use an individual YouTube video, not a channel, playlist or another website.');
+    const raw = u.searchParams.get('start') || u.searchParams.get('t') || '';
+    let start = 0;
+    if (/^\d+$/.test(raw)) start = Number(raw);
+    else if (/^(?:\d+h)?(?:\d+m)?(?:\d+s)?$/.test(raw) && raw) {
+      const m = raw.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+      start = Number(m[1] || 0)*3600 + Number(m[2] || 0)*60 + Number(m[3] || 0);
+    }
+    return {id, start:Math.min(Number.isFinite(start) ? start : 0, 86400)};
+  }
+  function resetPlayer() {
+    clearInterval(tick); clearTimeout(readyTimeout); tick = readyTimeout = null;
+    if (player) { try { player.destroy(); } catch (_) {} }
+    player = null; confirmed = false; baseTime = baseWall = lastTime = null; movingSamples = 0;
+  }
+  function loadAPI() {
+    if (window.YT && typeof window.YT.Player === 'function') return Promise.resolve();
+    if (apiPromise) return apiPromise;
+    apiPromise = new Promise((resolve, reject) => {
+      let done = false;
+      const timer = setTimeout(() => finish(new Error('YouTube did not respond. Check the connection or content filtering, then reload this page.')), 20000);
+      function finish(error) { if (done) return; done = true; clearTimeout(timer); error ? reject(error) : resolve(); }
+      window.onYouTubeIframeAPIReady = () => finish();
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api'; script.async = true;
+      script.referrerPolicy = 'strict-origin-when-cross-origin';
+      script.onerror = () => finish(new Error('The YouTube player API could not load. Check the connection or content filtering.'));
+      document.head.appendChild(script);
+    });
+    return apiPromise;
+  }
+  function checkProgress() {
+    if (!player) return;
+    let state, seconds;
+    try { state = player.getPlayerState(); seconds = player.getCurrentTime(); } catch (_) { return; }
+    if (!Number.isFinite(state) || !Number.isFinite(seconds)) return;
+    emit('time', {state, seconds});
+    if (state !== 1) { baseTime = baseWall = lastTime = null; movingSamples = 0; return; }
+    const now = performance.now();
+    if (baseTime === null || (lastTime !== null && (seconds < lastTime || seconds - lastTime > 3))) {
+      baseTime = seconds; baseWall = now; lastTime = seconds; movingSamples = 0; return;
+    }
+    if (seconds > lastTime) movingSamples++;
+    lastTime = seconds;
+    if (!confirmed && now - baseWall >= 2000 && seconds - baseTime >= 1.5 && movingSamples >= 2) {
+      confirmed = true;
+      status('Playback reported and the video clock is advancing. Confirm the picture and sound.', 'pass');
+      emit('playback-confirmed', {seconds});
+    }
+  }
+  async function startVideo(video) {
+    if (!hosted) { status('This helper must be served over HTTPS. Upload index.html and enable GitHub Pages; do not run this file directly from Downloads.', 'error'); return; }
+    const token = ++generation;
+    resetPlayer(); activeVideo = video.id; activeStart = video.start;
+    const watch = new URL('https://www.youtube.com/watch'); watch.searchParams.set('v', activeVideo);
+    if (activeStart) watch.searchParams.set('t', String(activeStart)); $('watch').href = watch.href;
+    $('screen').replaceChildren();
+    const waiting = document.createElement('div'); waiting.className = 'placeholder'; waiting.textContent = 'Loading the official YouTube player…'; $('screen').append(waiting);
+    status('Loading YouTube. Playback is not confirmed.'); emit('loading');
+    try { await loadAPI(); } catch (error) { if (token === generation) { status(error.message, 'error'); emit('api-failed'); } return; }
+    if (token !== generation) return;
+    emit('ready');
+    // Create the iframe ourselves so its true HTTPS origin, referrer policy and
+    // permissions are in place before loading. YouTube receives its own controls.
+    const iframe = document.createElement('iframe'); iframe.id = 'player'; iframe.title = 'YouTube video player';
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+    iframe.setAttribute('allowfullscreen', '');
+    const src = new URL('https://www.youtube.com/embed/' + activeVideo);
+    for (const [key,value] of Object.entries({enablejsapi:'1', origin:location.origin, autoplay:'0', controls:'1', playsinline:'1', start:String(activeStart)})) src.searchParams.set(key, value);
+    iframe.src = src.href; $('screen').replaceChildren(iframe);
+    const errors = {2:'Invalid video or player parameter.',5:'The browser could not play this video.',100:'This video is unavailable or private.',101:'The owner does not permit embedded playback.',150:'The owner does not permit embedded playback.',153:'YouTube did not receive acceptable player identification.'};
+    readyTimeout = setTimeout(() => { if (token === generation) { status('The player has not reported ready. Inspect its message or open the video on YouTube.'); emit('ready-timeout'); } }, 25000);
+    try {
+      player = new YT.Player(iframe, {events:{
+        onReady: () => {
+          if (token !== generation) return;
+          clearTimeout(readyTimeout); status('Player ready. Press Play in the video. Playback is not yet confirmed.'); emit('player-ready');
+          tick = setInterval(checkProgress, 1000);
+        },
+        onStateChange: event => {
+          if (token !== generation) return;
+          const state = Number(event.data); let seconds = 0;
+          try { seconds = event.target.getCurrentTime(); } catch (_) {}
+          emit('state', {state, seconds:Number.isFinite(seconds) ? seconds : 0});
+          if (state === 1) status(confirmed ? 'Playing. Playback was confirmed.' : 'YouTube reports playing. Checking video progress…', confirmed ? 'pass' : '');
+          else if (state === 2) status(confirmed ? 'Paused. Playback was confirmed.' : 'Paused. Sustained playback has not yet been confirmed.');
+          else if (state === 0) status(confirmed ? 'Video ended. Playback was confirmed.' : 'Video ended. Sustained playback was not confirmed.');
+          if (state !== 1) { baseTime = baseWall = lastTime = null; movingSamples = 0; }
+        },
+        onError: event => {
+          if (token !== generation) return;
+          clearTimeout(readyTimeout); clearInterval(tick); tick = null;
+          const code = Number(event.data); status('YouTube error ' + (Number.isFinite(code) ? code : 'unknown') + '. ' + (errors[code] || 'Read the message in the player.'), 'error'); emit('error', {code:Number.isFinite(code) ? code : 0});
+        },
+        onAutoplayBlocked: () => { if (token === generation) { status('Press Play directly inside the YouTube player.'); emit('autoplay-blocked'); } }
+      }});
+    } catch (_) { clearTimeout(readyTimeout); status('The player could not initialize. Reload this helper and try again.', 'error'); emit('api-failed'); }
+  }
+  $('load').addEventListener('click', () => {
+    try { const video = parseVideo($('video-input').value); $('input-error').textContent = ''; void startVideo(video); }
+    catch (error) { $('input-error').textContent = error.message; }
+  });
+  $('video-input').addEventListener('keydown', event => { if (event.key === 'Enter') $('load').click(); });
+  $('sample').addEventListener('click', () => { $('video-input').value = 'https://www.youtube.com/watch?v=' + SAMPLE; $('input-error').textContent = ''; });
+  window.addEventListener('pagehide', () => { generation++; resetPlayer(); });
+  window.addEventListener('pageshow', event => { if (event.persisted && activeVideo) void startVideo({id:activeVideo, start:activeStart}); });
+  if (!hosted) { $('load').disabled = true; status('This is the file to upload, not the local test. Open its GitHub Pages HTTPS address after publication.', 'error'); }
+  if (params.has('v')) {
+    const id = params.get('v') || ''; const rawStart = params.get('start') || '0';
+    if (!/^[A-Za-z0-9_-]{11}$/.test(id) || !/^\d{1,6}$/.test(rawStart) || Number(rawStart) > 86400) { status('Invalid video ID or start time. No YouTube request was made.', 'error'); }
+    else { $('video-input').value = 'https://www.youtube.com/watch?v=' + id; void startVideo({id, start:Number(rawStart)}); }
+  }
+})();
+</script>
+</body>
+</html>
